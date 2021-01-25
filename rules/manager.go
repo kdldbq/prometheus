@@ -36,6 +36,8 @@ import (
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/storage"
+
+	"github.com/prometheus/prometheus/models"
 )
 
 // RuleHealth describes the health state of a rule.
@@ -829,19 +831,15 @@ func (g *Group) Equals(ng *Group) bool {
 	if g.name != ng.name {
 		return false
 	}
-
 	if g.file != ng.file {
 		return false
 	}
-
 	if g.interval != ng.interval {
 		return false
 	}
-
 	if len(g.rules) != len(ng.rules) {
 		return false
 	}
-
 	for i, gr := range g.rules {
 		if gr.String() != ng.rules[i].String() {
 			return false
@@ -940,6 +938,7 @@ func (m *Manager) Update(interval time.Duration, files []string, externalLabels 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
+	level.Info(m.logger).Log("msg", "Rule manager Update")
 	groups, errs := m.LoadGroups(interval, externalLabels, files...)
 	if errs != nil {
 		for _, e := range errs {
@@ -950,13 +949,13 @@ func (m *Manager) Update(interval time.Duration, files []string, externalLabels 
 	m.restored = true
 
 	var wg sync.WaitGroup
-	for _, newg := range groups {
+	for k, newg := range groups {
 		// If there is an old group with the same identifier,
 		// check if new group equals with the old group, if yes then skip it.
 		// If not equals, stop it and wait for it to finish the current iteration.
 		// Then copy it into the new group.
 		gn := groupKey(newg.file, newg.name)
-		oldg, ok := m.groups[gn]
+		oldg, ok := m.groups[k]
 		delete(m.groups, gn)
 
 		if ok && oldg.Equals(newg) {
@@ -1022,14 +1021,68 @@ func (FileLoader) Load(identifier string) (*rulefmt.RuleGroups, []error) {
 
 func (FileLoader) Parse(query string) (parser.Expr, error) { return parser.ParseExpr(query) }
 
-// LoadGroups reads groups from a list of files.
-func (m *Manager) LoadGroups(
-	interval time.Duration, externalLabels labels.Labels, filenames ...string,
-) (map[string]*Group, []error) {
+
+func (m *Manager) loadGroupsFromMysql(shouldRestore bool, interval time.Duration, externalLabels labels.Labels,
+)(map[string]*Group, []error){
 	groups := make(map[string]*Group)
+	var rName, rFn string
+	rulelist , rerr := models.QueryRulesFromMysql()
+	if rerr != nil {
+		return nil, []error{rerr}
+	}
 
-	shouldRestore := !m.restored
+	itv := interval
+	rules := make([]Rule, 0, rulelist.Len())
 
+	level.Info(m.logger).Log("msg", "Rule manager Load rules :" , rulelist.Len())
+	for e := rulelist.Front(); e != nil; e = e.Next() {
+		r := (e.Value).(models.RuleItem)
+		rName = r.Name
+		rFn = r.Fn
+
+		expr, err := parser.ParseExpr(r.Expr)
+		if err != nil {
+			return nil, []error{err}
+		}
+
+		if r.Interval != 0 {
+			itv = time.Duration(r.Interval)
+		}
+
+		dur, derr := model.ParseDuration(r.For)
+		if derr != nil {
+			return nil, []error{derr}
+		}
+
+		rules = append(rules, NewAlertingRule(
+			r.Alert,
+			expr,
+			time.Duration(dur),
+			labels.FromMap(r.Labels),
+			labels.FromMap(r.Annotations),
+			labels.FromMap(r.Annotations),
+			false,
+			log.With(m.logger, "alert", r.Alert),
+		))
+	}
+
+	if len(rules) > 0 {
+		groups[groupKey(rFn, rName)] = NewGroup(GroupOptions{
+			Name:          rName,
+			File:          rFn,
+			Interval:      itv,
+			Rules:         rules,
+			ShouldRestore: shouldRestore,
+			Opts:          m.opts,
+			done:          m.done,
+		})
+	}
+	return groups, nil
+}
+
+func (m *Manager) loadGroupsFromFile( shouldRestore bool, interval time.Duration, externalLabels labels.Labels, filenames ...string,
+	)(map[string]*Group, []error) {
+	groups := make(map[string]*Group)
 	for _, fn := range filenames {
 		rgs, errs := m.opts.GroupLoader.Load(fn)
 		if errs != nil {
@@ -1080,8 +1133,29 @@ func (m *Manager) LoadGroups(
 			})
 		}
 	}
-
 	return groups, nil
+}
+
+// LoadGroups reads groups from a list of files.
+func (m *Manager) LoadGroups(
+	interval time.Duration, externalLabels labels.Labels, filenames ...string,
+) (map[string]*Group, []error) {
+	level.Info(m.logger).Log("msg", "Rule manager Load")
+
+	shouldRestore := !m.restored
+
+	switch models.GlobalConfigRuleSourceType  {
+	case "mysql":
+		level.Info(m.logger).Log("msg", "Rule manager Load from mysql")
+		groups, errs := m.loadGroupsFromMysql(shouldRestore, interval, externalLabels)
+		return groups, errs
+	case "file":
+		level.Info(m.logger).Log("msg", "Rule manager Load from file")
+		groups, errs := m.loadGroupsFromFile(shouldRestore, interval, externalLabels, filenames...)
+		return groups, errs
+	}
+
+	return nil, []error{}
 }
 
 // Group names need not be unique across filenames.

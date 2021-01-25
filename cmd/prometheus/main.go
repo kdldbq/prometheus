@@ -39,7 +39,6 @@ import (
 	"github.com/go-kit/kit/log/level"
 	conntrack "github.com/mwitkow/go-conntrack"
 	"github.com/oklog/run"
-	"github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
@@ -52,7 +51,7 @@ import (
 	jprom "github.com/uber/jaeger-lib/metrics/prometheus"
 	"go.uber.org/atomic"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
-	klog "k8s.io/klog"
+	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
 
 	"github.com/prometheus/prometheus/config"
@@ -71,6 +70,9 @@ import (
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/util/strutil"
 	"github.com/prometheus/prometheus/web"
+
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/prometheus/models"
 )
 
 var (
@@ -289,10 +291,17 @@ func main() {
 	}
 
 	// Throw error for invalid config before starting other components.
-	if _, err := config.LoadFile(cfg.configFile); err != nil {
+	confFromConfigFile, err := config.LoadFile(cfg.configFile)
+	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error loading config (--config.file=%s)", cfg.configFile), "err", err)
 		os.Exit(2)
 	}
+
+	models.GlobalConfigRuleSourceType = confFromConfigFile.GlobalConfig.RuleSourceType
+	if "mysql" == confFromConfigFile.GlobalConfig.RuleSourceType {
+		models.InitDB(confFromConfigFile.GlobalConfig.DatabaseUrl)
+	}
+
 	// Now that the validity of the config is established, set the config
 	// success metrics accordingly, although the config isn't really loaded
 	// yet. This will happen later (including setting these metrics again),
@@ -354,6 +363,7 @@ func main() {
 
 	noStepSubqueryInterval := &safePromQLNoStepSubqueryInterval{}
 	noStepSubqueryInterval.Set(config.DefaultGlobalConfig.EvaluationInterval)
+
 
 	// Above level 6, the k8s client would log bearer tokens in clear-text.
 	klog.ClampLevel(6)
@@ -499,7 +509,7 @@ func main() {
 				return discoveryManagerScrape.ApplyConfig(c)
 			},
 		}, {
-			name:     "notify",
+			name: "notify",
 			reloader: notifierManager.ApplyConfig,
 		}, {
 			name: "notify_sd",
@@ -916,6 +926,12 @@ func reloadConfig(filename string, logger log.Logger, noStepSuqueryInterval *saf
 	noStepSuqueryInterval.Set(conf.GlobalConfig.EvaluationInterval)
 	l := []interface{}{"msg", "Completed loading of configuration file", "filename", filename, "totalDuration", time.Since(start)}
 	level.Info(logger).Log(append(l, timings...)...)
+
+	models.GlobalConfigRuleSourceType = conf.GlobalConfig.RuleSourceType
+	if "mysql" == conf.GlobalConfig.RuleSourceType {
+		models.InitDB(conf.GlobalConfig.DatabaseUrl)
+	}
+
 	return nil
 }
 

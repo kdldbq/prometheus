@@ -1,0 +1,39 @@
+global:
+  reload_interval: 1m
+  rule_source_type: 'mysql'
+  database_url: 'root:123#456@tcp(8.130.28.97:33106)/my'
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+alerting:
+  alertmanagers:
+    - scheme: http
+      timeout: 10s
+      api_version: v1
+      static_configs:
+        - targets: []
+scrape_configs:
+  - job_name: prometheus
+    honor_timestamps: true
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  ## kubernetes 服务发现配置用
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+        ## kubernetes 暴露出来的 API 接口地址
+        #api_server: 'https://8.130.28.97:6443' // 外网HTTPS
+        #api_server: 'http://127.0.0.1:8001'    // 内网本地
+        api_server: 'http://8.130.28.97:8001'   ## 外网HTTP
+
+        tls_config:
+          insecure_skip_verify: true
+  - job_name: 'node'   ### 新增加job
+    static_configs:
+      - targets: ['8.130.28.97:9100']  ### 主机列表
