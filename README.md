@@ -16,3 +16,9 @@
 **prometheus 源码对配置对象的处理不是很一致**
 - 在 config/ 下有 config 对象，但在 main.go 中另定义了 cfg 对象，又未完整引用 config 对象。
 - 没有一个全局配置对象，代码中要想应用配置项，基本需要在其模块中定义局部配置变量，然后在 main.go 中对其赋值
+
+# 相关
+## 辅助
+有两个Promethues相关项目：
+* [mysql4Prom](https://github.com/huangwei2013/mysql4prom)：用于解析 prometheus 规则文件，并导入DB
+* [mysql4PromUI](https://github.com/huangwei2013/mysql4promUI)：用于 DB 对应的简单管理界面
