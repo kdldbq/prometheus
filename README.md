@@ -19,6 +19,6 @@
 
 # 相关
 ## 辅助
-有两个Promethues相关项目：
+有两个相关项目：
 * [mysql4Prom](https://github.com/huangwei2013/mysql4prom)：用于解析 prometheus 规则文件，并导入DB
 * [mysql4PromUI](https://github.com/huangwei2013/mysql4promUI)：用于 DB 对应的简单管理界面
