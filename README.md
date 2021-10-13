@@ -22,3 +22,8 @@
 有两个相关项目：
 * [mysql4Prom](https://github.com/huangwei2013/mysql4prom)：用于解析 prometheus 规则文件，并导入DB
 * [mysql4PromUI](https://github.com/huangwei2013/mysql4promUI)：用于 DB 对应的简单管理界面
+
+# 注意事项
+* 新版Prometheus需go1.16（主要是 k8s.io/client_go 使用了 io/fs 等新特性）
+* 若要调试，dvl需自行编译
+  * dvl 源码中（MaxSupportedVersionOfGoMinor）限定仅支持到 go1.14，手动修改到 go1.16 编译也可正常使用
