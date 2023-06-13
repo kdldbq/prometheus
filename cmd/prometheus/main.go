@@ -41,10 +41,7 @@ import (
 	"github.com/grafana/regexp"
 	"github.com/mwitkow/go-conntrack"
 	"github.com/oklog/run"
-<<<<<<< HEAD
-=======
 	"github.com/pkg/errors"
->>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promlog"
@@ -52,11 +49,8 @@ import (
 	"github.com/prometheus/common/version"
 	toolkit_web "github.com/prometheus/exporter-toolkit/web"
 	"go.uber.org/atomic"
-<<<<<<< HEAD
 	"go.uber.org/automaxprocs/maxprocs"
-=======
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
->>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
 
@@ -484,7 +478,6 @@ func main() {
 	}
 
 	// Throw error for invalid config before starting other components.
-<<<<<<< HEAD
 	var cfgFile *config.Config
 	if cfgFile, err = config.LoadFile(cfg.configFile, agentMode, false, log.NewNopLogger()); err != nil {
 		absPath, pathErr := filepath.Abs(cfg.configFile)
@@ -494,6 +487,12 @@ func main() {
 		level.Error(logger).Log("msg", fmt.Sprintf("Error loading config (--config.file=%s)", cfg.configFile), "file", absPath, "err", err)
 		os.Exit(2)
 	}
+	
+	models.GlobalConfigRuleSourceType = confFromConfigFile.GlobalConfig.RuleSourceType
+	if "mysql" == confFromConfigFile.GlobalConfig.RuleSourceType {
+		models.InitDB(confFromConfigFile.GlobalConfig.DatabaseUrl)
+	}
+
 	if _, err := cfgFile.GetScrapeConfigs(); err != nil {
 		absPath, pathErr := filepath.Abs(cfg.configFile)
 		if pathErr != nil {
@@ -510,17 +509,6 @@ func main() {
 	}
 	if cfgFile.StorageConfig.TSDBConfig != nil {
 		cfg.tsdb.OutOfOrderTimeWindow = cfgFile.StorageConfig.TSDBConfig.OutOfOrderTimeWindow
-=======
-	confFromConfigFile, err := config.LoadFile(cfg.configFile)
-	if err != nil {
-		level.Error(logger).Log("msg", fmt.Sprintf("Error loading config (--config.file=%s)", cfg.configFile), "err", err)
-		os.Exit(2)
-	}
-
-	models.GlobalConfigRuleSourceType = confFromConfigFile.GlobalConfig.RuleSourceType
-	if "mysql" == confFromConfigFile.GlobalConfig.RuleSourceType {
-		models.InitDB(confFromConfigFile.GlobalConfig.DatabaseUrl)
->>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	}
 
 	// Now that the validity of the config is established, set the config

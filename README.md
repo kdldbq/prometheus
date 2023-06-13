@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <h1 align="center" style="border-bottom: none">
     <a href="//prometheus.io" target="_blank"><img alt="Prometheus" src="/documentation/images/prometheus-logo.svg"></a><br>Prometheus
 </h1>
@@ -189,7 +188,6 @@ Apache License 2.0, see [LICENSE](https://github.com/prometheus/prometheus/blob/
 
 [hub]: https://hub.docker.com/r/prom/prometheus/
 [quay]: https://quay.io/repository/prometheus/prometheus
-=======
 
 
 # 改造
@@ -219,4 +217,3 @@ Apache License 2.0, see [LICENSE](https://github.com/prometheus/prometheus/blob/
 * 新版Prometheus需go1.16（主要是 k8s.io/client_go 使用了 io/fs 等新特性）
 * 若要调试，dvl需自行编译
   * dvl 源码中（MaxSupportedVersionOfGoMinor）限定仅支持到 go1.14，手动修改到 go1.16 编译也可正常使用
->>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
