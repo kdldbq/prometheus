@@ -140,6 +140,7 @@ var (
 
 	// DefaultGlobalConfig is the default global configuration.
 	DefaultGlobalConfig = GlobalConfig{
+		ReloadInterval:     model.Duration(1 * time.Minute),
 		ScrapeInterval:     model.Duration(1 * time.Minute),
 		ScrapeTimeout:      model.Duration(10 * time.Second),
 		EvaluationInterval: model.Duration(1 * time.Minute),
@@ -381,6 +382,13 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // GlobalConfig configures values that are used across other configuration
 // objects.
 type GlobalConfig struct {
+	// How frequently to rule targets by default.
+	ReloadInterval model.Duration `yaml:"reload_interval,omitempty"`
+	// where rules come from
+	RuleSourceType string `yaml:"rule_source_type,omitempty"`
+	// Where database(mysql) to load
+	DatabaseUrl string `yaml:"database_url,omitempty"`
+
 	// How frequently to scrape targets by default.
 	ScrapeInterval model.Duration `yaml:"scrape_interval,omitempty"`
 	// The default timeout when scraping targets.

@@ -41,6 +41,10 @@ import (
 	"github.com/grafana/regexp"
 	"github.com/mwitkow/go-conntrack"
 	"github.com/oklog/run"
+<<<<<<< HEAD
+=======
+	"github.com/pkg/errors"
+>>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/promlog"
@@ -48,7 +52,11 @@ import (
 	"github.com/prometheus/common/version"
 	toolkit_web "github.com/prometheus/exporter-toolkit/web"
 	"go.uber.org/atomic"
+<<<<<<< HEAD
 	"go.uber.org/automaxprocs/maxprocs"
+=======
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+>>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	"k8s.io/klog"
 	klogv2 "k8s.io/klog/v2"
 
@@ -75,6 +83,9 @@ import (
 	"github.com/prometheus/prometheus/util/logging"
 	prom_runtime "github.com/prometheus/prometheus/util/runtime"
 	"github.com/prometheus/prometheus/web"
+
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/prometheus/prometheus/models"
 )
 
 var (
@@ -473,6 +484,7 @@ func main() {
 	}
 
 	// Throw error for invalid config before starting other components.
+<<<<<<< HEAD
 	var cfgFile *config.Config
 	if cfgFile, err = config.LoadFile(cfg.configFile, agentMode, false, log.NewNopLogger()); err != nil {
 		absPath, pathErr := filepath.Abs(cfg.configFile)
@@ -498,6 +510,17 @@ func main() {
 	}
 	if cfgFile.StorageConfig.TSDBConfig != nil {
 		cfg.tsdb.OutOfOrderTimeWindow = cfgFile.StorageConfig.TSDBConfig.OutOfOrderTimeWindow
+=======
+	confFromConfigFile, err := config.LoadFile(cfg.configFile)
+	if err != nil {
+		level.Error(logger).Log("msg", fmt.Sprintf("Error loading config (--config.file=%s)", cfg.configFile), "err", err)
+		os.Exit(2)
+	}
+
+	models.GlobalConfigRuleSourceType = confFromConfigFile.GlobalConfig.RuleSourceType
+	if "mysql" == confFromConfigFile.GlobalConfig.RuleSourceType {
+		models.InitDB(confFromConfigFile.GlobalConfig.DatabaseUrl)
+>>>>>>> 4fd929a7516723895cc65a1254b6d9ce2138fdbd
 	}
 
 	// Now that the validity of the config is established, set the config
@@ -561,6 +584,7 @@ func main() {
 
 	noStepSubqueryInterval := &safePromQLNoStepSubqueryInterval{}
 	noStepSubqueryInterval.Set(config.DefaultGlobalConfig.EvaluationInterval)
+
 
 	// Above level 6, the k8s client would log bearer tokens in clear-text.
 	klog.ClampLevel(6)
@@ -762,7 +786,7 @@ func main() {
 				return discoveryManagerScrape.ApplyConfig(c)
 			},
 		}, {
-			name:     "notify",
+			name: "notify",
 			reloader: notifierManager.ApplyConfig,
 		}, {
 			name: "notify_sd",
@@ -1259,6 +1283,12 @@ func reloadConfig(filename string, expandExternalLabels, enableExemplarStorage b
 	noStepSuqueryInterval.Set(conf.GlobalConfig.EvaluationInterval)
 	l := []interface{}{"msg", "Completed loading of configuration file", "filename", filename, "totalDuration", time.Since(start)}
 	level.Info(logger).Log(append(l, timings...)...)
+
+	models.GlobalConfigRuleSourceType = conf.GlobalConfig.RuleSourceType
+	if "mysql" == conf.GlobalConfig.RuleSourceType {
+		models.InitDB(conf.GlobalConfig.DatabaseUrl)
+	}
+
 	return nil
 }
 
